@@ -4290,6 +4290,7 @@ function deleteAction(id){actions=actions.filter(a=>a.id!==id);save();renderActi
 
 function openAddStock(){document.getElementById('stock-title').textContent='เพิ่มหุ้น';document.getElementById('s-id').value='';['s-ticker','s-shares','s-cost','s-price','s-target','s-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('s-type').value='growth';document.getElementById('modal-stock').classList.add('open');}
 function editStock(id){const st=stocks.find(s=>s.id===id);if(!st)return;document.getElementById('stock-title').textContent='แก้ไขหุ้น';document.getElementById('s-id').value=id;document.getElementById('s-ticker').value=st.ticker;document.getElementById('s-shares').value=st.shares;document.getElementById('s-cost').value=st.costPrice;document.getElementById('s-price').value=st.currentPrice;document.getElementById('s-target').value=st.targetPct||0;document.getElementById('s-type').value=st.type;document.getElementById('s-note').value=st.note||'';document.getElementById('modal-stock').classList.add('open');}
+window.editStock = editStock;
 function saveStock(){
   const ticker=document.getElementById('s-ticker').value.trim().toUpperCase();
   const shares=parseFloat(document.getElementById('s-shares').value)||0;
