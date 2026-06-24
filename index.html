@@ -2933,7 +2933,94 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
 
 <div class="toast" id="toast">อัปเดตราคา 10 ตัว ✓</div>
 
-<script>
+<script type="module">
+// 1. นำเข้า Firebase (เวอร์ชัน 10.7.1)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// 2. ตั้งค่า Configuration ของคุณ
+const firebaseConfig = {
+  apiKey: "AIzaSyAyxFPi8KSMHRyo6fT7ISPqD2CgxPG5XMc",
+  authDomain: "athena-portfolio.firebaseapp.com",
+  projectId: "athena-portfolio",
+  storageBucket: "athena-portfolio.firebasestorage.app",
+  messagingSenderId: "105741015644",
+  appId: "1:105741015644:web:739a44e2c491bb43596499",
+  measurementId: "G-B6QD5TE4SD"
+};
+
+// 3. เริ่มต้นการเชื่อมต่อ
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// 4. กำหนดตำแหน่งเก็บข้อมูล (Collection: "portfolio", Document: "main-user")
+const docRef = doc(db, "portfolio", "main-user");
+
+// สร้างตัวแปรกลางสำหรับเก็บข้อมูลใน RAM
+window.appData = { decisions: [] };
+
+// ฟังก์ชันอ่านข้อมูล: ส่งคืนค่าจากตัวแปรใน RAM
+window._dmLoad = function() {
+  return window.appData.decisions || [];
+};
+
+// ฟังก์ชันบันทึกข้อมูล: อัปเดต RAM และ Sync ขึ้น Firebase
+window._saveDecisionRecord = async function(record) {
+  let decisions = window.appData.decisions || [];
+
+  // เช็คว่าเป็นเคสแก้ไขหรือบันทึกใหม่
+  if (record.id) {
+    decisions = decisions.map(d => d.id === record.id ? { ...d, ...record } : d);
+  } else {
+    record.id = Date.now().toString(); // สร้าง ID ใหม่
+    decisions.push(record);
+  }
+
+  // 1. อัปเดตใน RAM
+  window.appData.decisions = decisions;
+
+  // 2. Sync ขึ้น Firebase
+  try {
+    await setDoc(docRef, { decisions: decisions });
+    console.log("บันทึกข้อมูลลง Firebase สำเร็จ");
+  } catch (e) {
+    console.error("บันทึกข้อมูลล้มเหลว:", e);
+  }
+};
+
+// ฟังก์ชัน Load ใหม่: ดึงข้อมูลจาก Cloud มาใส่ตัวแปรกลาง
+window.load = async function() {
+  try {
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      // ได้ข้อมูลมาแล้ว ใส่ลงตัวแปรกลาง
+      window.appData = docSnap.data();
+      console.log("โหลดข้อมูลจาก Firebase สำเร็จ!");
+    } else {
+      console.log("ยังไม่มีข้อมูลใน Cloud เริ่มต้นด้วยข้อมูลว่าง");
+      window.appData = { decisions: [] };
+    }
+  } catch (e) {
+    console.error("เกิดข้อผิดพลาดในการโหลด:", e);
+    window.appData = { decisions: [] };
+  }
+
+  // เรียกฟังก์ชันวาดหน้าจอเดิมของคุณ (ต้องมีอยู่ในโค้ดเดิม)
+  if (typeof renderDecisions === 'function') renderDecisions();
+  if (typeof renderHome === 'function') renderHome();
+};
+
+// ทำให้ฟังก์ชันที่ถูกเรียกผ่าน HTML (onclick) ใช้งานได้
+window.toggleDmCard = toggleDmCard;
+window.openAddDecision = openAddDecision;
+window.editDecision = editDecision;
+window.saveDecision = saveDecision;
+window.confirmDeleteDecision = confirmDeleteDecision;
+window.buildAIContextDev = buildAIContextDev;
+window.buildAnalysisPromptDev = buildAnalysisPromptDev;
+
+// [จุดนี้]: วาง "โค้ดเดิมของคุณทั้งหมด" ต่อลงมาได้เลยครับ
+// ตั้งแต่ฟังก์ชัน toggleDmCard(...) ไปจนถึงบรรทัดสุดท้าย
 /* ═══════════════════════════════════════════════════
    ATHENA v3  JavaScript
    State → render → CRUD → sync
@@ -4550,12 +4637,6 @@ async function doSync(){
 function _dmSave(arr){
   try{localStorage.setItem('athena_decisions',JSON.stringify(arr));}
   catch(e){console.error('[DM] save failed',e);}
-}
-
-/** Load from localStorage, return array */
-function _dmLoad(){
-  try{return JSON.parse(localStorage.getItem('athena_decisions')||'[]');}
-  catch(e){return [];}
 }
 
 // ── Public API ───────────────────────────────────────────────
