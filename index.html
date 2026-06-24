@@ -663,8 +663,7 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
 }
 
 /* Closed card dim */
-.dm-card.status-closed-card{opacity:.65}
-.dm-card.status-closed-card:hover{opacity:.85}
+/* .status-closed-card moved — see canonical definition below */
 .dm-card.status-review-card .dm-card-header{
   border-left:3px solid var(--warn);
 }
@@ -737,11 +736,6 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
 /* ── DECISION LIFECYCLE — v10.2 ────────────────────────────── */
 
 /* Status pill shown on collapsed card header */
-.dm-status-pill{
-  font-family:var(--mono);font-size:8px;font-weight:700;
-  padding:2px 7px;border-radius:999px;letter-spacing:.5px;
-  white-space:nowrap;flex-shrink:0;
-}
 .status-active{
   background:var(--pos-bg);color:var(--pos);
   border:1px solid color-mix(in srgb,var(--pos) 25%,transparent);
@@ -762,30 +756,14 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
   padding:4px 10px;border-radius:3px;border:1px solid transparent;
   cursor:pointer;touch-action:manipulation;transition:all .15s;
 }
-.btn-review{
-  background:var(--warn-bg);color:var(--warn);
-  border-color:color-mix(in srgb,var(--warn) 30%,transparent);
-}
-.btn-review:hover{filter:brightness(1.1)}
-.btn-close-dec{
-  background:var(--card2);color:var(--ink3);
-  border-color:var(--border2);
-}
-.btn-close-dec:hover{background:var(--neg-bg);color:var(--neg);border-color:var(--neg)}
+/* .btn-review and .btn-close-dec removed v10.2.1 — use .lbtn-review and .lbtn-close */
 
 /* CLOSED card — dim the whole card slightly */
 .dm-card.status-closed-card{opacity:.65}
 .dm-card.status-closed-card:hover{opacity:1}
 
 /* Status filter tabs (replaces plain type dropdown for lifecycle) */
-.dm-status-tabs{display:flex;background:var(--card2);border:1px solid var(--border);border-radius:5px;overflow:hidden;flex-shrink:0}
-.dm-status-tab{
-  font-family:var(--mono);font-size:9px;font-weight:600;
-  padding:5px 10px;border:none;background:none;color:var(--ink3);
-  cursor:pointer;touch-action:manipulation;transition:all .15s;white-space:nowrap;
-}
-.dm-status-tab:hover{color:var(--ink)}
-.dm-status-tab.active{background:var(--btn-bg);color:var(--btn-fg)}
+/* .dm-status-tabs/.dm-status-tab duplicate removed v10.2.1 — canonical definition above */
 
 /* Closed date / review date metadata */
 .dm-lifecycle-meta{
