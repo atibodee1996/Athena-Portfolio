@@ -2,7 +2,7 @@
 <html lang="th" data-theme="dark"><head><meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Athena Portfolio</title>
+<title>Athena Aegis</title>
 <link rel="icon" type="image/jpeg" href="https://github.com/atibodee1996.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -5043,7 +5043,7 @@ function saveDecisionFromModal(){
 // saveDecision() — called from modal button (no args)
 function saveDecision(){saveDecisionFromModal();}
 
-function confirmDeleteDecision(id){
+function confirmDeleteDecisio	n(id){
   const r=_dmLoad().find(x=>x.id===id);
   if(!r)return;
   if(confirm(`ลบการตัดสินใจ ${r.ticker} (${r.decision}) วันที่ ${r.date}?`)){
