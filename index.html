@@ -4453,6 +4453,53 @@ async function fetchPrices(opts={}){
 
 async function pushCloud(data){if(!sheetsUrl)return;try{const res=await fetch(sheetsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});return(JSON.parse(await res.text())).status==='ok';}catch(e){return false;}}
 
+/* ── mergeCloudStock(local, cloud) ─────────────────────────────────
+   Single canonical merge function for all sync paths.
+   Called by: forcePull(), doSync(), _startupTargetSync()
+
+   Governance Rules enforced here:
+   Rule 1: costPrice always local  (user purchase price, USD)
+   Rule 2: targetPct always cloud  (allocation intent, shared across devices)
+   Rule 3: shares always local     (actual holdings)
+   Rule 4: currentPrice from cloud only if valid (>0)
+   ─────────────────────────────────────────────────────────────── */
+function mergeCloudStock(local, cloud){
+  if(!cloud) return local;
+  return {
+    ...cloud,                                              // CLOUD base: targetPct, type, note
+    id:           local.id,                               // LOCAL: record identity
+    shares:       local.shares,                           // LOCAL: Rule 3 — actual holdings
+    costPrice:    local.costPrice,                        // LOCAL: Rule 1 — purchase cost (USD)
+    currentPrice: cloud.currentPrice > 0
+                  ? cloud.currentPrice
+                  : local.currentPrice,                   // CLOUD preferred, fallback local
+  };
+}
+
+/* ── applyCloudStocks(cloudStocks) ──────────────────────────────────
+   Applies mergeCloudStock() across the full stocks[] array.
+   Adds new cloud tickers not yet in local portfolio.
+   Returns count of changed tickers for logging.
+   ─────────────────────────────────────────────────────────────── */
+function applyCloudStocks(cloudStocks){
+  if(!cloudStocks||!cloudStocks.length) return 0;
+  const cloudMap={};
+  cloudStocks.forEach(s=>{ cloudMap[s.ticker]=s; });
+  let changed=0;
+  stocks=stocks.map(local=>{
+    const cloud=cloudMap[local.ticker];
+    const merged=mergeCloudStock(local,cloud);
+    if(JSON.stringify(merged)!==JSON.stringify(local)) changed++;
+    return merged;
+  });
+  // add new tickers from cloud not yet in local
+  cloudStocks.forEach(cs=>{
+    if(!stocks.find(s=>s.ticker===cs.ticker)) stocks.push(cs);
+  });
+  return changed;
+}
+
+
 async function forcePull(){
   const btn=document.getElementById('pull-btn');
   if(!sheetsUrl){toast('ตั้ง URL ใน "ส่งออก" ก่อน');return;}
@@ -4460,35 +4507,8 @@ async function forcePull(){
   try{
     const data=JSON.parse(await(await fetch(sheetsUrl+'?t='+Date.now())).text());
     if(!data||data.status==='empty'){toast('ยังไม่มีข้อมูลบน Cloud');btn.textContent='↓';btn.className='sync-btn';return;}
-    // ── TARGETED MERGE v10.2.2: field-level rules ──────────────────────
-    // costPrice  → LOCAL wins (user's actual purchase price, never overwrite)
-    // shares     → LOCAL wins (actual holdings, never overwrite)
-    // currentPrice → CLOUD wins (live price from GAS)
-    // targetPct  → CLOUD wins (allocation target is user intent, synced across devices)
-    // type       → CLOUD wins (category may be updated on any device)
-    // note       → CLOUD wins (thesis notes updated on any device)
-    // id         → LOCAL wins (preserve existing record IDs)
-    if(data.stocks&&data.stocks.length){
-      const cloudMap={};
-      data.stocks.forEach(s=>{cloudMap[s.ticker]=s;});
-      stocks=stocks.map(local=>{
-        const cloud=cloudMap[local.ticker];
-        if(!cloud)return local;
-        return{
-          ...cloud,                                              // start from CLOUD (gets targetPct, type, note)
-          id:          local.id,                                 // LOCAL: preserve record ID
-          shares:      local.shares,                             // LOCAL: actual holdings
-          costPrice:   local.costPrice,                          // LOCAL: purchase cost (Governance Rule 1)
-          currentPrice:cloud.currentPrice>0
-                       ? cloud.currentPrice
-                       : local.currentPrice,                     // CLOUD preferred, fallback local
-        };
-      });
-      // add new tickers that exist in cloud but not local
-      data.stocks.forEach(cs=>{
-        if(!stocks.find(s=>s.ticker===cs.ticker)) stocks.push(cs);
-      });
-    }
+    // ── TARGETED MERGE via mergeCloudStock() — see helper for field-level rules ──
+    applyCloudStocks(data.stocks);
     // non-stock data: pull from cloud (these are safe to overwrite)
     briefs=data.briefs||briefs;
     riskSignals=data.riskSignals||riskSignals;
@@ -4538,21 +4558,8 @@ async function doSync(){
       if(confirm('⚠️ ข้อมูลบน Cloud มีการอัปเดตล่าสุดที่ใหม่กว่าเครื่องคุณ!\n\n👉 กด [OK] เพื่อ: โหลดราคาจาก Cloud (รักษาราคาทุน + จำนวนหุ้นในเครื่องไว้)\n👉 กด [Cancel] เพื่อ: บังคับดันข้อมูลในเครื่องไปทับ Cloud (Force Push)')){
         // SAFE MERGE: preserve local costPrice + shares, only update currentPrice from cloud
         if(data.stocks&&data.stocks.length){
-          // TARGETED MERGE v10.2.2: cloud wins on targetPct, type, note, currentPrice
-          // local wins on costPrice, shares, id (Governance Rules 1+3)
-          const cMap={};data.stocks.forEach(s=>{cMap[s.ticker]=s;});
-          stocks=stocks.map(local=>{
-            const cloud=cMap[local.ticker];
-            if(!cloud)return local;
-            return{
-              ...cloud,
-              id:          local.id,
-              shares:      local.shares,
-              costPrice:   local.costPrice,
-              currentPrice:cloud.currentPrice>0?cloud.currentPrice:local.currentPrice,
-            };
-          });
-          data.stocks.forEach(cs=>{if(!stocks.find(s=>s.ticker===cs.ticker))stocks.push(cs);});
+          // TARGETED MERGE via mergeCloudStock() — see helper for field-level rules
+          applyCloudStocks(data.stocks);
         }
         briefs=data.briefs||briefs;riskSignals=data.riskSignals||riskSignals;
         oppSignals=data.oppSignals||oppSignals;actions=data.actions||actions;
@@ -5069,6 +5076,39 @@ renderHome();
 startLiveUpdates();
 // FX updates automatically when user presses LIVE button
 // No auto-fetch on startup to avoid overwriting user's last known rate
+
+// ── STARTUP TARGETSYNC (v10.2.2A Part 1B) ────────────────────────
+// Problem: on cold start (new device / fresh browser), load() reads
+// targetPct from stale localStorage. Cloud may have newer targetPct
+// values updated from another device. User would only see correct
+// values after manually pressing ↓ Pull.
+//
+// Fix: silently fetch cloud data on startup and apply ONLY targetPct,
+// type, and note from cloud. Never touch shares, costPrice, or id.
+// Non-blocking — runs after UI is rendered, fails silently.
+// ─────────────────────────────────────────────────────────────────
+(async function _startupTargetSync(){
+  if(!sheetsUrl) return; // no cloud configured → skip
+  try{
+    const raw = await fetch(sheetsUrl+'?t='+Date.now());
+    const data = JSON.parse(await raw.text());
+    if(!data||data.status==='empty'||!data.stocks||!data.stocks.length) return;
+
+    // Use canonical mergeCloudStock() helper (same rules as forcePull/doSync)
+    const changed=applyCloudStocks(data.stocks);
+
+    if(changed>0){
+      save(); // persist merged targetPct to localStorage
+      renderPortfolioSummary();
+      renderHoldings();
+      renderHome();
+      console.log(`[Athena] Startup sync: updated ${changed} ticker(s) from cloud`);
+    }
+  }catch(e){
+    // Fail silently — non-critical startup sync
+    console.warn('[Athena] Startup targetPct sync skipped:', e.message);
+  }
+})();
 </script>
 
 
