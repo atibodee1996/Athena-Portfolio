@@ -3,7 +3,6 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Athena Portfolio</title>
-<link rel="icon" type="image/jpeg" href="https://github.com/atibodee1996.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -663,7 +662,8 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
 }
 
 /* Closed card dim */
-/* .status-closed-card moved — see canonical definition below */
+.dm-card.status-closed-card{opacity:.65}
+.dm-card.status-closed-card:hover{opacity:.85}
 .dm-card.status-review-card .dm-card-header{
   border-left:3px solid var(--warn);
 }
@@ -736,6 +736,11 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
 /* ── DECISION LIFECYCLE — v10.2 ────────────────────────────── */
 
 /* Status pill shown on collapsed card header */
+.dm-status-pill{
+  font-family:var(--mono);font-size:8px;font-weight:700;
+  padding:2px 7px;border-radius:999px;letter-spacing:.5px;
+  white-space:nowrap;flex-shrink:0;
+}
 .status-active{
   background:var(--pos-bg);color:var(--pos);
   border:1px solid color-mix(in srgb,var(--pos) 25%,transparent);
@@ -756,14 +761,30 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
   padding:4px 10px;border-radius:3px;border:1px solid transparent;
   cursor:pointer;touch-action:manipulation;transition:all .15s;
 }
-/* .btn-review and .btn-close-dec removed v10.2.1 — use .lbtn-review and .lbtn-close */
+.btn-review{
+  background:var(--warn-bg);color:var(--warn);
+  border-color:color-mix(in srgb,var(--warn) 30%,transparent);
+}
+.btn-review:hover{filter:brightness(1.1)}
+.btn-close-dec{
+  background:var(--card2);color:var(--ink3);
+  border-color:var(--border2);
+}
+.btn-close-dec:hover{background:var(--neg-bg);color:var(--neg);border-color:var(--neg)}
 
 /* CLOSED card — dim the whole card slightly */
 .dm-card.status-closed-card{opacity:.65}
 .dm-card.status-closed-card:hover{opacity:1}
 
 /* Status filter tabs (replaces plain type dropdown for lifecycle) */
-/* .dm-status-tabs/.dm-status-tab duplicate removed v10.2.1 — canonical definition above */
+.dm-status-tabs{display:flex;background:var(--card2);border:1px solid var(--border);border-radius:5px;overflow:hidden;flex-shrink:0}
+.dm-status-tab{
+  font-family:var(--mono);font-size:9px;font-weight:600;
+  padding:5px 10px;border:none;background:none;color:var(--ink3);
+  cursor:pointer;touch-action:manipulation;transition:all .15s;white-space:nowrap;
+}
+.dm-status-tab:hover{color:var(--ink)}
+.dm-status-tab.active{background:var(--btn-bg);color:var(--btn-fg)}
 
 /* Closed date / review date metadata */
 .dm-lifecycle-meta{
@@ -4453,53 +4474,6 @@ async function fetchPrices(opts={}){
 
 async function pushCloud(data){if(!sheetsUrl)return;try{const res=await fetch(sheetsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});return(JSON.parse(await res.text())).status==='ok';}catch(e){return false;}}
 
-/* ── mergeCloudStock(local, cloud) ─────────────────────────────────
-   Single canonical merge function for all sync paths.
-   Called by: forcePull(), doSync(), _startupTargetSync()
-
-   Governance Rules enforced here:
-   Rule 1: costPrice always local  (user purchase price, USD)
-   Rule 2: targetPct always cloud  (allocation intent, shared across devices)
-   Rule 3: shares always local     (actual holdings)
-   Rule 4: currentPrice from cloud only if valid (>0)
-   ─────────────────────────────────────────────────────────────── */
-function mergeCloudStock(local, cloud){
-  if(!cloud) return local;
-  return {
-    ...cloud,                                              // CLOUD base: targetPct, type, note
-    id:           local.id,                               // LOCAL: record identity
-    shares:       local.shares,                           // LOCAL: Rule 3 — actual holdings
-    costPrice:    local.costPrice,                        // LOCAL: Rule 1 — purchase cost (USD)
-    currentPrice: cloud.currentPrice > 0
-                  ? cloud.currentPrice
-                  : local.currentPrice,                   // CLOUD preferred, fallback local
-  };
-}
-
-/* ── applyCloudStocks(cloudStocks) ──────────────────────────────────
-   Applies mergeCloudStock() across the full stocks[] array.
-   Adds new cloud tickers not yet in local portfolio.
-   Returns count of changed tickers for logging.
-   ─────────────────────────────────────────────────────────────── */
-function applyCloudStocks(cloudStocks){
-  if(!cloudStocks||!cloudStocks.length) return 0;
-  const cloudMap={};
-  cloudStocks.forEach(s=>{ cloudMap[s.ticker]=s; });
-  let changed=0;
-  stocks=stocks.map(local=>{
-    const cloud=cloudMap[local.ticker];
-    const merged=mergeCloudStock(local,cloud);
-    if(JSON.stringify(merged)!==JSON.stringify(local)) changed++;
-    return merged;
-  });
-  // add new tickers from cloud not yet in local
-  cloudStocks.forEach(cs=>{
-    if(!stocks.find(s=>s.ticker===cs.ticker)) stocks.push(cs);
-  });
-  return changed;
-}
-
-
 async function forcePull(){
   const btn=document.getElementById('pull-btn');
   if(!sheetsUrl){toast('ตั้ง URL ใน "ส่งออก" ก่อน');return;}
@@ -4507,8 +4481,24 @@ async function forcePull(){
   try{
     const data=JSON.parse(await(await fetch(sheetsUrl+'?t='+Date.now())).text());
     if(!data||data.status==='empty'){toast('ยังไม่มีข้อมูลบน Cloud');btn.textContent='↓';btn.className='sync-btn';return;}
-    // ── TARGETED MERGE via mergeCloudStock() — see helper for field-level rules ──
-    applyCloudStocks(data.stocks);
+    // ── SAFE MERGE: preserve local costPrice + shares (source of truth) ──
+    // Only overwrite currentPrice from cloud; never overwrite cost basis with cloud data.
+    if(data.stocks&&data.stocks.length){
+      const cloudMap={};
+      data.stocks.forEach(s=>{cloudMap[s.ticker]=s;});
+      stocks=stocks.map(local=>{
+        const cloud=cloudMap[local.ticker];
+        if(!cloud)return local; // ticker not in cloud → keep local entirely
+        return{
+          ...local,                                    // start from LOCAL (preserves costPrice, shares, type, note, targetPct)
+          currentPrice: cloud.currentPrice>0 ? cloud.currentPrice : local.currentPrice, // update price only
+        };
+      });
+      // add any new tickers from cloud that don't exist locally
+      data.stocks.forEach(cs=>{
+        if(!stocks.find(s=>s.ticker===cs.ticker)) stocks.push(cs);
+      });
+    }
     // non-stock data: pull from cloud (these are safe to overwrite)
     briefs=data.briefs||briefs;
     riskSignals=data.riskSignals||riskSignals;
@@ -4558,8 +4548,13 @@ async function doSync(){
       if(confirm('⚠️ ข้อมูลบน Cloud มีการอัปเดตล่าสุดที่ใหม่กว่าเครื่องคุณ!\n\n👉 กด [OK] เพื่อ: โหลดราคาจาก Cloud (รักษาราคาทุน + จำนวนหุ้นในเครื่องไว้)\n👉 กด [Cancel] เพื่อ: บังคับดันข้อมูลในเครื่องไปทับ Cloud (Force Push)')){
         // SAFE MERGE: preserve local costPrice + shares, only update currentPrice from cloud
         if(data.stocks&&data.stocks.length){
-          // TARGETED MERGE via mergeCloudStock() — see helper for field-level rules
-          applyCloudStocks(data.stocks);
+          const cMap={};data.stocks.forEach(s=>{cMap[s.ticker]=s;});
+          stocks=stocks.map(local=>{
+            const cloud=cMap[local.ticker];
+            if(!cloud)return local;
+            return{...local, currentPrice:cloud.currentPrice>0?cloud.currentPrice:local.currentPrice};
+          });
+          data.stocks.forEach(cs=>{if(!stocks.find(s=>s.ticker===cs.ticker))stocks.push(cs);});
         }
         briefs=data.briefs||briefs;riskSignals=data.riskSignals||riskSignals;
         oppSignals=data.oppSignals||oppSignals;actions=data.actions||actions;
@@ -5076,39 +5071,6 @@ renderHome();
 startLiveUpdates();
 // FX updates automatically when user presses LIVE button
 // No auto-fetch on startup to avoid overwriting user's last known rate
-
-// ── STARTUP TARGETSYNC (v10.2.2A Part 1B) ────────────────────────
-// Problem: on cold start (new device / fresh browser), load() reads
-// targetPct from stale localStorage. Cloud may have newer targetPct
-// values updated from another device. User would only see correct
-// values after manually pressing ↓ Pull.
-//
-// Fix: silently fetch cloud data on startup and apply ONLY targetPct,
-// type, and note from cloud. Never touch shares, costPrice, or id.
-// Non-blocking — runs after UI is rendered, fails silently.
-// ─────────────────────────────────────────────────────────────────
-(async function _startupTargetSync(){
-  if(!sheetsUrl) return; // no cloud configured → skip
-  try{
-    const raw = await fetch(sheetsUrl+'?t='+Date.now());
-    const data = JSON.parse(await raw.text());
-    if(!data||data.status==='empty'||!data.stocks||!data.stocks.length) return;
-
-    // Use canonical mergeCloudStock() helper (same rules as forcePull/doSync)
-    const changed=applyCloudStocks(data.stocks);
-
-    if(changed>0){
-      save(); // persist merged targetPct to localStorage
-      renderPortfolioSummary();
-      renderHoldings();
-      renderHome();
-      console.log(`[Athena] Startup sync: updated ${changed} ticker(s) from cloud`);
-    }
-  }catch(e){
-    // Fail silently — non-critical startup sync
-    console.warn('[Athena] Startup targetPct sync skipped:', e.message);
-  }
-})();
 </script>
 
 
