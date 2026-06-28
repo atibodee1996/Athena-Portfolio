@@ -4471,7 +4471,6 @@ async function forcePull(){
     // ── Cloud is the Single Source of Truth ──
     applyCloudStocks(data.stocks);
         
-    // non-stock data: pull from cloud (these are safe to overwrite)
     briefs=data.briefs||briefs;
     riskSignals=data.riskSignals||riskSignals;
     oppSignals=data.oppSignals||oppSignals;
@@ -4497,8 +4496,6 @@ async function forcePull(){
     renderHoldings();
     btn.textContent='OK';btn.className='sync-btn ok';toast('ดึงข้อมูลจาก Cloud ✓');
     setTimeout(()=>{btn.textContent='↓';btn.className='sync-btn';},2500);
-  }catch(e){btn.textContent='ERR';btn.className='sync-btn err';toast('ดึงข้อมูลไม่ได้');setTimeout(()=>{btn.textContent='↓';btn.className='sync-btn';},3000);}
-}
 
 async function doSync(){
   const btn=document.getElementById('sync-btn');
@@ -4519,19 +4516,20 @@ async function doSync(){
       // ถ้า Cloud ใหม่กว่า ให้ผู้ใช้เลือกว่าจะ Pull หรือ Force Push
       if(confirm('⚠️ ข้อมูลบน Cloud มีการอัปเดตล่าสุดที่ใหม่กว่าเครื่องคุณ!\n\n👉 กด [OK] เพื่อ: โหลดราคาจาก Cloud (รักษาราคาทุน + จำนวนหุ้นในเครื่องไว้)\n👉 กด [Cancel] เพื่อ: บังคับดันข้อมูลในเครื่องไปทับ Cloud (Force Push)')){
       // Cloud is the Single Source of Truth
-                 stocks = Array.isArray(data.stocks) ? data.stocks : [];
+      applyCloudStocks(data.stocks);
 
         briefs=data.briefs||briefs;riskSignals=data.riskSignals||riskSignals;
         oppSignals=data.oppSignals||oppSignals;actions=data.actions||actions;
         notes=data.notes||notes;calItems=data.calItems||calItems;
         capitalEntries=data.capitalEntries||capitalEntries;reserve=data.reserve||reserve;
         if(data.fx&&data.fx>20&&data.fx<60){
-      fx=data.fx;
-      localStorage.setItem(FX_CACHE_KEY,String(fx));
-      localStorage.setItem(FX_TS_KEY,String(Date.now()));
-      localStorage.setItem(FX_SOURCE_KEY,'live');
-      _updateFxDisplay(fx,'live');
-    }
+    fx=data.fx;
+    localStorage.setItem(FX_CACHE_KEY,String(fx));
+    localStorage.setItem(FX_TS_KEY,String(Date.now()));
+    localStorage.setItem(FX_SOURCE_KEY,'live');
+    _updateFxDisplay(fx,'live');
+}
+
      const merged={stocks,briefs,riskSignals,oppSignals,actions,notes,calItems,capitalEntries,reserve,fx,sheetsUrl,savedAt:new Date().toISOString()
           };
         localStorage.setItem('athena_v3',JSON.stringify(merged));
@@ -4539,7 +4537,9 @@ async function doSync(){
         renderPortfolioSummary();
         renderHoldings();
         toast('Merge จาก Cloud ✓ (รักษาราคาทุนไว้)');
-      } else {
+      }
+      
+      else {
         // ถ้ากด Cancel = บังคับ Push
         await pushCloud(JSON.parse(localStorage.getItem('athena_v3')||'{}'));
         toast('บังคับ Push ทับ Cloud ✓');
@@ -5056,7 +5056,7 @@ startLiveUpdates();
     if(!data||data.status==='empty'||!data.stocks||!data.stocks.length) return;
 
     // Cloud is the Single Source of Truth
-stocks = Array.isArray(data.stocks) ? data.stocks : [];
+applyCloudStocks(data.stocks);
 
 save();
 renderPortfolioSummary();
