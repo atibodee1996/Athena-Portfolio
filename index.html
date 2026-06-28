@@ -5051,7 +5051,7 @@ function saveDecisionFromModal(){
 // saveDecision() — called from modal button (no args)
 function saveDecision(){saveDecisionFromModal();}
 
-function confirmDeleteDecisio	n(id){
+function confirmDeleteDecision(id){
   const r=_dmLoad().find(x=>x.id===id);
   if(!r)return;
   if(confirm(`ลบการตัดสินใจ ${r.ticker} (${r.decision}) วันที่ ${r.date}?`)){
