@@ -4519,7 +4519,7 @@ async function doSync(){
       if(confirm('⚠️ ข้อมูลบน Cloud มีการอัปเดตล่าสุดที่ใหม่กว่าเครื่องคุณ!\n\n👉 กด [OK] เพื่อ: โหลดราคาจาก Cloud (รักษาราคาทุน + จำนวนหุ้นในเครื่องไว้)\n👉 กด [Cancel] เพื่อ: บังคับดันข้อมูลในเครื่องไปทับ Cloud (Force Push)')){
       // Cloud is the Single Source of Truth
                  stocks = Array.isArray(data.stocks) ? data.stocks : [];
-        }
+
         briefs=data.briefs||briefs;riskSignals=data.riskSignals||riskSignals;
         oppSignals=data.oppSignals||oppSignals;actions=data.actions||actions;
         notes=data.notes||notes;calItems=data.calItems||calItems;
