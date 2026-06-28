@@ -4496,6 +4496,18 @@ async function forcePull(){
     renderHoldings();
     btn.textContent='OK';btn.className='sync-btn ok';toast('ดึงข้อมูลจาก Cloud ✓');
     setTimeout(()=>{btn.textContent='↓';btn.className='sync-btn';},2500);
+    } catch(e){
+    console.error("forcePull ERROR:", e);
+
+    btn.textContent='ERR';
+    btn.className='sync-btn err';
+    toast('ดึงข้อมูลไม่ได้');
+
+    setTimeout(()=>{
+        btn.textContent='↓';
+        btn.className='sync-btn';
+    },3000);
+}
 
 async function doSync(){
   const btn=document.getElementById('sync-btn');
