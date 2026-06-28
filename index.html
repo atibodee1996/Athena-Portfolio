@@ -4517,8 +4517,8 @@ async function forcePull(){
   try{
     const data=JSON.parse(await(await fetch(sheetsUrl+'?t='+Date.now())).text());
     if(!data||data.status==='empty'){toast('ยังไม่มีข้อมูลบน Cloud');btn.textContent='↓';btn.className='sync-btn';return;}
-    // ── TARGETED MERGE via mergeCloudStock() — see helper for field-level rules ──
-    applyCloudStocks(data.stocks);
+    // ── Cloud is the Single Source of Truth ──
+        stocks = Array.isArray(data.stocks) ? data.stocks : [];
     // non-stock data: pull from cloud (these are safe to overwrite)
     briefs=data.briefs||briefs;
     riskSignals=data.riskSignals||riskSignals;
@@ -4582,7 +4582,8 @@ async function doSync(){
       localStorage.setItem(FX_SOURCE_KEY,'live');
       _updateFxDisplay(fx,'live');
     }
-        const merged={stocks,briefs,riskSignals,oppSignals,actions,notes,calItems,capitalEntries,reserve,fx,sheetsUrl,savedAt:new Date().toISOString()};
+     const merged={stocks,briefs,riskSignals,oppSignals,actions,notes,calItems,capitalEntries,reserve,fx,sheetsUrl,savedAt:new Date().toISOString()
+          };
         localStorage.setItem('athena_v3',JSON.stringify(merged));
         renderHome();
         renderPortfolioSummary();
