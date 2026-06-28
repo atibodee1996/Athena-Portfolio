@@ -5068,7 +5068,8 @@ startLiveUpdates();
     const raw = await fetch(sheetsUrl+'?t='+Date.now());
     const data = JSON.parse(await raw.text());
     if(!data||data.status==='empty'||!data.stocks||!data.stocks.length) return;
-
+  } catch(e) {
+    
     // Cloud is the Single Source of Truth
 applyCloudStocks(data.stocks);
 
