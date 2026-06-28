@@ -5063,9 +5063,17 @@ renderHoldings();
 renderHome();
 console.log("[Athena] Startup sync: Cloud loaded");
 }catch(e){
-    // Fail silently — non-critical startup sync
-    console.warn('[Athena] Startup targetPct sync skipped:', e.message);
-  }
+  console.error("forcePull ERROR:", e);
+  console.error(e.stack);
+
+  btn.textContent='ERR';
+  btn.className='sync-btn err';
+  toast('ดึงข้อมูลไม่ได้');
+  setTimeout(()=>{
+    btn.textContent='↓';
+    btn.className='sync-btn';
+  },3000);
+}
 })();
 </script>
 
