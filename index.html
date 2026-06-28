@@ -4489,24 +4489,26 @@ function mergeCloudStock(local, cloud){
    Adds new cloud tickers not yet in local portfolio.
    Returns count of changed tickers for logging.
    ─────────────────────────────────────────────────────────────── */
-function applyCloudStocks(cloudStocks){
-  if(!cloudStocks||!cloudStocks.length) return 0;
-  const cloudMap={};
-  cloudStocks.forEach(s=>{ cloudMap[s.ticker]=s; });
-  let changed=0;
-  stocks=stocks.map(local=>{
-    const cloud=cloudMap[local.ticker];
-    const merged=mergeCloudStock(local,cloud);
-    if(JSON.stringify(merged)!==JSON.stringify(local)) changed++;
-    return merged;
-  });
-  // add new tickers from cloud not yet in local
-  cloudStocks.forEach(cs=>{
-    if(!stocks.find(s=>s.ticker===cs.ticker)) stocks.push(cs);
-  });
-  return changed;
-}
+function applyCloudStocks(cloudStocks) {
+  if (!cloudStocks || !Array.isArray(cloudStocks)) return;
 
+  const cloudMap = {};
+  cloudStocks.forEach(s => {
+    cloudMap[s.ticker] = s;
+  });
+
+  // 1. กรองหุ้นที่ไม่มีบน Cloud ทิ้ง (Delete) จากนั้นค่อย Merge ข้อมูล (Update)
+  stocks = stocks
+    .filter(local => cloudMap[local.ticker])
+    .map(local => mergeCloudStock(local, cloudMap[local.ticker]));
+
+  // 2. ดึงหุ้นตัวใหม่จาก Cloud ที่ Local ยังไม่มีเข้ามา (Insert)
+  cloudStocks.forEach(cs => {
+    if (!stocks.find(s => s.ticker === cs.ticker)) {
+      stocks.push(cs);
+    }
+  });
+}
 
 async function forcePull(){
   const btn=document.getElementById('pull-btn');
