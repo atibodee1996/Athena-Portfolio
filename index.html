@@ -4470,6 +4470,18 @@ async function forcePull(){
     if(!data||data.status==='empty'){toast('ยังไม่มีข้อมูลบน Cloud');btn.textContent='↓';btn.className='sync-btn';return;}
     // ── Cloud is the Single Source of Truth ──
     applyCloudStocks(data.stocks);
+        }catch(e){
+    console.error("forcePull ERROR:", e);
+
+    btn.textContent='ERR';
+    btn.className='sync-btn err';
+    toast('ดึงข้อมูลไม่ได้');
+
+    setTimeout(()=>{
+        btn.textContent='↓';
+        btn.className='sync-btn';
+    },3000);
+}
     // non-stock data: pull from cloud (these are safe to overwrite)
     briefs=data.briefs||briefs;
     riskSignals=data.riskSignals||riskSignals;
@@ -5062,18 +5074,6 @@ renderPortfolioSummary();
 renderHoldings();
 renderHome();
 console.log("[Athena] Startup sync: Cloud loaded");
-}catch(e){
-  console.error("forcePull ERROR:", e);
-  console.error(e.stack);
-
-  btn.textContent='ERR';
-  btn.className='sync-btn err';
-  toast('ดึงข้อมูลไม่ได้');
-  setTimeout(()=>{
-    btn.textContent='↓';
-    btn.className='sync-btn';
-  },3000);
-}
 })();
 </script>
 
