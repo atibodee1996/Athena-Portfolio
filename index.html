@@ -3056,7 +3056,16 @@ let pushTimer=null;
 function save(){
   const d={stocks,briefs,riskSignals,oppSignals,actions,notes,calItems,capitalEntries,reserve,fx,sheetsUrl,savedAt:new Date().toISOString()};
   localStorage.setItem('athena_v3',JSON.stringify(d)); // FIXED: was accidentally commented out
-  if(sheetsUrl){clearTimeout(pushTimer);pushTimer=setTimeout(()=>pushCloud(d),3000);}
+  if(sheetsUrl){
+    clearTimeout(pushTimer);
+    // FIX v10.2.3A: Read from localStorage at fire time, NOT from closure `d`.
+    // Prevents race condition where fetchPrices() save() cancels deleteStock() push
+    // and replaces it with a snapshot that still contains the deleted ticker.
+    pushTimer=setTimeout(()=>{
+      const latest=localStorage.getItem('athena_v3');
+      if(latest) pushCloud(JSON.parse(latest));
+    },3000);
+  }
 }
 function load(){
   // migrate from v2
@@ -3106,7 +3115,6 @@ function initDefaults(){
     {id:gid(),ticker:'COST', shares:0.1260, costPrice:973.34,  currentPrice:0, type:'def',     targetPct:5, note:'Defensive growth retailer'},
     {id:gid(),ticker:'BRK.B',shares:0,      costPrice:465.00,  currentPrice:0, type:'value',   targetPct:8, note:'Defensive / Crisis Buyer'},
     {id:gid(),ticker:'CEG',  shares:0.2437, costPrice:53.97,   currentPrice:0, type:'cycle',   targetPct:3, note:'Nuclear energy — AI power'},
-    {id:gid(),ticker:'INDA', shares:2.5125, costPrice:48.88,   currentPrice:0, type:'growth',  targetPct:0, note:'INDIA Emerging Market Growth'},
     {id:gid(),ticker:'AMZN', shares:0,      costPrice:230.00,   currentPrice:0, type:'growth',  targetPct:0, note:'E-commerce และ Cloud'},
   ];
   calItems=buildAutoCalendar();
