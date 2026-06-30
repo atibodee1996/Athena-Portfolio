@@ -4459,6 +4459,35 @@ async function fetchPrices(opts={}){
   }
 }
 
+// ── SYNC HELPERS (v10.2.2A) ─────────────────────────────────────────
+// mergeCloudStock: single-record field-level merge
+// Governance: cloud wins targetPct/type/note, local wins shares/costPrice/id
+function mergeCloudStock(local, cloud){
+  if(!cloud) return local;
+  return {
+    ...cloud,
+    id:           local.id,
+    shares:       local.shares,
+    costPrice:    local.costPrice,
+    currentPrice: cloud.currentPrice>0 ? cloud.currentPrice : local.currentPrice,
+  };
+}
+
+// applyCloudStocks: applies mergeCloudStock across all stocks[], returns changed count
+function applyCloudStocks(cloudStocks){
+  if(!cloudStocks||!cloudStocks.length) return 0;
+  const cloudMap={};
+  cloudStocks.forEach(s=>{cloudMap[s.ticker]=s;});
+  let changed=0;
+  stocks=stocks.map(local=>{
+    const merged=mergeCloudStock(local, cloudMap[local.ticker]);
+    if(JSON.stringify(merged)!==JSON.stringify(local)) changed++;
+    return merged;
+  });
+  cloudStocks.forEach(cs=>{if(!stocks.find(s=>s.ticker===cs.ticker)) stocks.push(cs);});
+  return changed;
+}
+
 async function pushCloud(data){if(!sheetsUrl)return;try{const res=await fetch(sheetsUrl,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});return(JSON.parse(await res.text())).status==='ok';}catch(e){return false;}}
 
 async function forcePull(){
@@ -4603,6 +4632,16 @@ async function doSync(){
    ─────────────────────────────────────────────────────────── */
 
 // ── Storage helpers ──────────────────────────────────────────
+
+/** Load decisions array from its own localStorage key */
+function _dmLoad(){
+  try{
+    return JSON.parse(localStorage.getItem('athena_decisions')||'[]');
+  }catch(e){
+    console.error('[DM] load failed',e);
+    return [];
+  }
+}
 
 /** Save full decisions array to its own localStorage key */
 function _dmSave(arr){
@@ -5068,16 +5107,18 @@ startLiveUpdates();
     const raw = await fetch(sheetsUrl+'?t='+Date.now());
     const data = JSON.parse(await raw.text());
     if(!data||data.status==='empty'||!data.stocks||!data.stocks.length) return;
-  } catch(e) {
-    
-    // Cloud is the Single Source of Truth
-applyCloudStocks(data.stocks);
-
-save();
-renderPortfolioSummary();
-renderHoldings();
-renderHome();
-console.log("[Athena] Startup sync: Cloud loaded");
+    // Use canonical merge helper — cloud wins targetPct/type/note, local keeps shares/costPrice/id
+    const changed = applyCloudStocks(data.stocks);
+    if(changed > 0){
+      save();
+      renderPortfolioSummary();
+      renderHoldings();
+      renderHome();
+      console.log('[Athena] Startup sync: updated ' + changed + ' ticker(s) from cloud');
+    }
+  } catch (e) {
+    console.error("[Athena] Startup sync failed", e);
+  }
 })();
 </script>
 
