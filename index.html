@@ -675,7 +675,75 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
 }
 .dm-timeline-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
-.dm-snapshot-row{
+/* ── GOOGLE FINANCE WORKSPACE (Phase 1) ──────────────────────
+   UI-only integration. No data fetching, no calculation.
+   Opens external Google Finance / SEC / IR pages via window.open.
+   ──────────────────────────────────────────────────────────── */
+.gfw-section{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:16px;margin-top:14px;
+}
+.gfw-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;flex-wrap:wrap;gap:8px;
+}
+.gfw-title{
+  font-family:var(--mono);font-size:9px;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--ink3);
+}
+.gfw-search-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.gfw-search-input{
+  flex:1;min-width:140px;
+  background:var(--card2);border:1px solid var(--border);color:var(--ink);
+  font-family:var(--mono);font-size:12px;padding:8px 12px;border-radius:6px;
+  outline:none;transition:border-color .15s;text-transform:uppercase;
+}
+.gfw-search-input:focus{border-color:var(--btn-bg)}
+.gfw-search-input::placeholder{color:var(--ink3);text-transform:none}
+
+.gfw-chip-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.gfw-chip{
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  padding:5px 11px;border-radius:999px;border:1px solid var(--border);
+  background:var(--card2);color:var(--ink2);cursor:pointer;
+  touch-action:manipulation;transition:all .15s;
+}
+.gfw-chip:hover{border-color:var(--ink2);color:var(--ink)}
+.gfw-chip.active{background:var(--btn-bg);color:var(--btn-fg);border-color:transparent}
+
+.gfw-actions-row{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding-top:12px;border-top:1px solid var(--border);
+}
+.gfw-selected-label{
+  font-family:var(--mono);font-size:11px;color:var(--ink3);
+  margin-right:4px;white-space:nowrap;
+}
+.gfw-selected-ticker{font-weight:700;color:var(--ink)}
+.gfw-action-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--sans);font-size:11.5px;font-weight:500;
+  padding:7px 13px;border-radius:6px;border:1px solid var(--btn-ghost-border);
+  background:var(--btn-ghost-bg);color:var(--btn-ghost-text);
+  cursor:pointer;touch-action:manipulation;transition:all .15s;
+}
+.gfw-action-btn:hover{border-color:var(--ink2);color:var(--ink)}
+
+/* small launcher button embedded in holdings rows/cards */
+.gfw-mini-btn{
+  font-family:var(--mono);font-size:9px;padding:3px 7px;
+  border-radius:2px;border:1px solid var(--border);background:none;
+  color:var(--c-blue);cursor:pointer;letter-spacing:.3px;
+  touch-action:manipulation;white-space:nowrap;
+}
+.gfw-mini-btn:hover{background:var(--c-blue-bg)}
+
+@media(max-width:680px){
+  .gfw-actions-row{flex-direction:column;align-items:stretch}
+  .gfw-action-btn{justify-content:center}
+}
+
+.dm-snapshot-row{.dm-snapshot-row{
   padding:8px 0;border-top:1px solid var(--border);margin-top:6px;
 }
 .dm-snapshot-label{
@@ -2023,6 +2091,33 @@ body{background:var(--bg);font-family:var(--sans);color:var(--ink);min-height:10
   <!-- hidden legacy element (keep for compatibility) -->
   <div class="port-summary" id="port-summary" style="display:none"></div>
 
+  <!-- ════ GOOGLE FINANCE WORKSPACE (Phase 1) ════
+       UI launcher only — no data ingestion, no calculation.
+       Dashboard = control center, Google Finance = data source. ════ -->
+  <div class="gfw-section">
+    <div class="gfw-header">
+      <div class="gfw-title">🌐 Google Finance Workspace</div>
+    </div>
+
+    <!-- Search box: type any ticker, open its Google Finance page -->
+    <div class="gfw-search-row">
+      <input class="gfw-search-input" id="gfw-search" placeholder="พิมพ์ ticker เช่น NVDA, GOOGL, META..."
+        onkeydown="if(event.key==='Enter')gfwSearchOpen()">
+      <button class="btn btn-primary" style="font-size:11px" onclick="gfwSearchOpen()">เปิด Google Finance</button>
+    </div>
+
+    <!-- Quick-launch chips for current holdings (dynamic) -->
+    <div class="gfw-chip-wrap" id="gfw-chips"></div>
+
+    <!-- Action row: operates on the selected ticker -->
+    <div class="gfw-actions-row">
+      <div class="gfw-selected-label">เลือก: <span class="gfw-selected-ticker" id="gfw-selected">—</span></div>
+      <button class="gfw-action-btn" onclick="openGoogleFinance(gfwSelectedTicker)">📈 Open Google Finance</button>
+      <button class="gfw-action-btn" onclick="openSECFiling(gfwSelectedTicker)">📄 Open SEC Filing</button>
+      <button class="gfw-action-btn" onclick="openInvestorRelations(gfwSelectedTicker)">🏢 Open Investor Relations</button>
+    </div>
+  </div>
+
 </div></div>
 
 
@@ -3228,7 +3323,7 @@ function showPage(id,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
-  const r={home:renderHome,portfolio:()=>{renderPortfolioSummary();},decisions:renderDecisions,notes:renderNotesPage,calendar:renderCalendar,ai:()=>{},export:()=>{}};
+  const r={home:renderHome,portfolio:()=>{renderPortfolioSummary();renderGoogleFinanceWorkspace();},decisions:renderDecisions,notes:renderNotesPage,calendar:renderCalendar,ai:()=>{},export:()=>{}};
   if(r[id])r[id]();
 }
 
@@ -3321,6 +3416,126 @@ const SECTOR_MAP = {
   INDA:'Emerging Mkt', EWJ:'International',
 };
 function sectorOf(ticker){return SECTOR_MAP[ticker]||SECTOR_MAP[ticker.replace('-','_')]||'Other';}
+
+/* ══════════════════════════════════════════════════════════════
+   GOOGLE FINANCE WORKSPACE  (Phase 1 — UI/Integration only)
+   Dashboard does NOT fetch or store Google Finance data.
+   These functions only build URLs and open them in a new tab.
+   Extend GFW_EXCHANGE_MAP / GFW_IR_MAP here as new tickers are added.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Ticker → Google Finance exchange prefix.
+   Google Finance URL format: https://www.google.com/finance/quote/{TICKER}:{EXCHANGE}
+   Default fallback = NASDAQ (most common for US growth/tech names). */
+const GFW_EXCHANGE_MAP = {
+  'BRK.B':'NYSE',  V:'NYSE',    JPM:'NYSE',    COST:'NASDAQ',
+  ASML:'NASDAQ',   NVDA:'NASDAQ', GOOGL:'NASDAQ', AMZN:'NASDAQ',
+  MSFT:'NASDAQ',   META:'NASDAQ', AMD:'NASDAQ',  INTC:'NASDAQ',
+  SPGI:'NYSE',     NEE:'NYSE',   DELL:'NYSE',   RKLB:'NYSE', OKLO:'NYSE',
+  VOO:'NYSEARCA',  QQQ:'NASDAQ', QQQM:'NASDAQ', VTI:'NYSEARCA',
+  SCHD:'NYSEARCA', JEPQ:'NASDAQ', HDV:'NYSEARCA', EWJ:'NYSEARCA',
+  CEG:'NASDAQ',    GRID:'NASDAQ', INDA:'NASDAQ', SPCX:'NASDAQ',
+  TSMC:'NYSE', // ticker rename handled in googleFinanceSymbol_()
+};
+
+/* Ticker → { sec, ir } URLs. IR has no universal pattern, so unknown
+   tickers fall back to a Google search placeholder (per spec: Phase 1
+   allows placeholders when company data is unavailable). */
+const GFW_IR_MAP = {
+  NVDA:  'https://investor.nvidia.com/',
+  GOOGL: 'https://abc.xyz/investor/',
+  MSFT:  'https://www.microsoft.com/en-us/investor',
+  META:  'https://investor.fb.com/',
+  AMZN:  'https://ir.aboutamazon.com/',
+  'BRK.B':'https://www.berkshirehathaway.com/',
+  V:     'https://investor.visa.com/',
+  COST:  'https://investor.costco.com/',
+  ASML:  'https://www.asml.com/en/investors',
+  CEG:   'https://www.constellationenergy.com/investors.html',
+  SPGI:  'https://investor.spglobal.com/',
+  DELL:  'https://investors.delltechnologies.com/',
+  RKLB:  'https://investors.rocketlabusa.com/',
+  OKLO:  'https://investors.oklo.com/',
+};
+
+/* Resolve the ticker symbol Google Finance actually uses (handles renames) */
+function googleFinanceSymbol_(ticker){
+  const renameMap = { TSMC:'TSM' };
+  return renameMap[ticker] || ticker;
+}
+
+/** Open a ticker's Google Finance quote page in a new tab */
+function openGoogleFinance(ticker){
+  if(!ticker) return;
+  const t = ticker.trim().toUpperCase();
+  const symbol = googleFinanceSymbol_(t);
+  const exchange = GFW_EXCHANGE_MAP[t] || 'NASDAQ';
+  window.open(`https://www.google.com/finance/quote/${symbol}:${exchange}`, '_blank');
+}
+
+/** Open SEC EDGAR filings page for a ticker (works for most US-listed tickers) */
+function openSECFiling(ticker){
+  if(!ticker) return;
+  const t = ticker.trim().toUpperCase();
+  window.open(`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(t)}&type=10-K&dateb=&owner=include&count=40`, '_blank');
+}
+
+/** Open Investor Relations page — falls back to a search if not mapped */
+function openInvestorRelations(ticker){
+  if(!ticker) return;
+  const t = ticker.trim().toUpperCase();
+  const url = GFW_IR_MAP[t];
+  if(url){ window.open(url, '_blank'); }
+  else {
+    // Placeholder fallback per Phase 1 spec: use a search when IR URL unknown
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(t+' investor relations')}`, '_blank');
+  }
+}
+
+/* Currently selected ticker for the workspace action buttons */
+let gfwSelectedTicker = '';
+
+/** Set the active ticker for the workspace action row + highlight its chip */
+function gfwSetTicker(ticker){
+  gfwSelectedTicker = ticker;
+  const label = document.getElementById('gfw-selected');
+  if(label) label.textContent = ticker;
+  document.querySelectorAll('.gfw-chip').forEach(chip=>{
+    chip.classList.toggle('active', chip.dataset.ticker===ticker);
+  });
+}
+
+/** Search box handler — opens Google Finance for whatever the user typed */
+function gfwSearchOpen(){
+  const input = document.getElementById('gfw-search');
+  if(!input) return;
+  const t = input.value.trim().toUpperCase();
+  if(!t){ toast('พิมพ์ ticker ก่อน'); return; }
+  gfwSetTicker(t);
+  openGoogleFinance(t);
+}
+
+/** Render quick-launch chips from current holdings (read-only — does not touch stocks[]) */
+function renderGoogleFinanceWorkspace(){
+  const chipsEl = document.getElementById('gfw-chips');
+  if(!chipsEl) return;
+  const tickers = [...new Set(stocks.map(s=>s.ticker))].filter(Boolean).sort();
+  if(!tickers.length){
+    chipsEl.innerHTML = '<div style="font-size:11px;color:var(--ink3)">ยังไม่มีหุ้นในพอร์ต</div>';
+    return;
+  }
+  chipsEl.innerHTML = tickers.map(t=>
+    `<div class="gfw-chip" data-ticker="${t}" onclick="gfwSetTicker('${t}');openGoogleFinance('${t}')">${t}</div>`
+  ).join('');
+  // default-select first ticker so action buttons have a target immediately
+  if(!gfwSelectedTicker || !tickers.includes(gfwSelectedTicker)){
+    gfwSetTicker(tickers[0]);
+  } else {
+    gfwSetTicker(gfwSelectedTicker); // refresh highlight state
+  }
+}
+
+
 
 /* ── SORT STATE ── */
 let holdSortCol='marketValue', holdSortDir=-1, holdFilter='all';
@@ -3462,7 +3677,11 @@ function renderHoldings(){
       <td class="${pnlCls}" style="font-weight:600">${st.gainLossPct!==null?(st.gainLossPct>=0?'+':'')+fmt(st.gainLossPct,2)+'%':'—'}</td>
       <td class="${allocCls}">${fmt(st.allocation,2)}%<br><span style="font-size:9px;color:var(--ink3)">เป้า ${st.targetPct||0}%</span></td>
       <td><span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:2px;background:${cat.dot}18;color:${cat.dot}">${cat.en||cat.label}</span></td>
-      <td><button class="act-btn" onclick="editStock('${st.id}')">แก้ไข</button><button class="act-btn" style="color:var(--neg);margin-top:3px" onclick="deleteStock('${st.id}')">ลบ</button></td>
+      <td>
+        <button class="gfw-mini-btn" onclick="event.stopPropagation();openGoogleFinance('${st.ticker}')">📈 Finance</button>
+        <button class="act-btn" onclick="editStock('${st.id}')">แก้ไข</button>
+        <button class="act-btn" style="color:var(--neg);margin-top:3px" onclick="deleteStock('${st.id}')">ลบ</button>
+      </td>
     </tr>`;
   }).join('');
   const totalCost=rows.reduce((s,r)=>s+r.costBasis,0);
@@ -3561,6 +3780,7 @@ function renderHcards(rows){
         </div>
         <!-- Action buttons -->
         <div class="hcard-actions">
+          <button class="gfw-mini-btn" onclick="event.stopPropagation();openGoogleFinance('${st.ticker}')">📈 Finance</button>
           <button class="act-btn" onclick="event.stopPropagation();editStock('${st.id}')">✎ แก้ไข</button>
           <button class="act-btn" style="color:var(--neg)" onclick="event.stopPropagation();deleteStock('${st.id}')">✕ ลบ</button>
         </div>
